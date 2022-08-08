@@ -18,6 +18,8 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         # Add custom claims
         token['username'] = user.username
+        token["firstName"] = user.first_name
+        token["email"] = user.email
         # ...
 
         return token
@@ -65,7 +67,7 @@ class PizzaSerializer(serializers.ModelSerializer):
             price_s = 5 + price,
             price_m = 8 + price, 
             price_l = 11 + price,  
-            ready_time = validated_data["ready_time"], 
+            ready_time = 40, 
             creater = validated_data["creater"],
             pizza_image = (f"pizza_images/{image_name}.png")
         )
@@ -78,10 +80,18 @@ class PizzaField(serializers.StringRelatedField):
     
     def to_internal_value(self, data):
         try:
-            print(data)
             return self.get_queryset().get_or_create(name=data.lower())[0]
         except (TypeError, ValueError):
             self.fail(f"Pizza value {data} is invalid")
+
+
+class OrderItemCreateSerializer(serializers.ModelSerializer):
+    
+    pizza = PizzaSerializer()
+    
+    class Meta:
+        model = OrderItem
+        fields = "__all__"
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -98,14 +108,14 @@ class OrderItemField(serializers.StringRelatedField):
     def to_internal_value(self, data):
         try:
             order_item = data.split("/")
-            pizza = Pizza.objects.get(name=order_item[0])
+            pizza = Pizza.objects.get(id=order_item[0])
             orderItem = OrderItem.objects.get_or_create(pizza=pizza, size=order_item[1])[0]
             return orderItem.id
         except (TypeError):
             self.fail(f"Order item value {data} is invalid")
 
 
-class OrderSerializer(serializers.ModelSerializer):
+class OrderCreateSerializer(serializers.ModelSerializer):
     
     order_list = OrderItemField(many=True)
     
@@ -120,7 +130,7 @@ class OrderSerializer(serializers.ModelSerializer):
         price = 0
         for item in order_list_original:
             order_item = OrderItem.objects.get(id=item) 
-            pizza = Pizza.objects.get(name=order_item.pizza.name)
+            pizza = Pizza.objects.get(id=order_item.pizza.id)
             
             if order_item.size == "S":
                 price += pizza.price_s
@@ -129,28 +139,36 @@ class OrderSerializer(serializers.ModelSerializer):
             else:
                 price += pizza.price_l
         
-        order = Order.objects.create(**validated_data)
-        order.price = price
+        order = Order.objects.create(**validated_data, price=price)
         order.order_list.set(order_list_original)
         
         return order
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    
+    order_list = OrderItemCreateSerializer(many=True)
+    
+    class Meta:
+        model = Order
+        fields = "__all__"
 
 
 class RegisterSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ('id', 'username', 'password', 'first_name', 'last_name')
+        fields = ('id', 'username', 'email', 'password', 'first_name')
         extra_kwargs = {
             'password':{'write_only': True},
         }
 
     def create(self, validated_data):
         user = User.objects.create_user(
-            validated_data['username'],     
+            validated_data['username'],
+            email = validated_data['email'],
             password = validated_data['password'],
-            first_name=validated_data['first_name'],  
-            last_name=validated_data['last_name']
+            first_name=validated_data['first_name']
         )
         return user
 

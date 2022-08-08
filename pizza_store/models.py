@@ -52,18 +52,16 @@ class OrderItem(models.Model):
     size = models.CharField(max_length=1, blank=False)
     
     def __str__(self):
-        return F"{self.pizza.name}/{self.size}"
+        return F"{self.pizza.id}/{self.size}"
 
 
 class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
-    accepted_at = models.DateTimeField(blank=True, null=True)
-    done_at = models.DateTimeField(blank=True, null=True)
     address = models.CharField(max_length=50, blank=True)
     customer = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=50, blank=True)
     price = models.IntegerField(null=True, blank=True)
-    accepted = models.BooleanField(auto_created=True, default=False)
-    done = models.BooleanField(auto_created=True, default=False)
     order_list = models.ManyToManyField(OrderItem, blank=True)
     
     def __str__(self):

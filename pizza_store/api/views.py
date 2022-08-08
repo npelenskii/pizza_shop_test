@@ -8,7 +8,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from pizza_store.models import OrderItem, Pizza, Order
-from .serializers import RegisterSerializer, UserSerializer, OrderSerializer, OrderItemSerializer, PizzaSerializer, MyTokenObtainPairSerializer
+from .serializers import RegisterSerializer, UserSerializer, OrderSerializer, OrderCreateSerializer, OrderItemSerializer, OrderItemCreateSerializer, PizzaSerializer, MyTokenObtainPairSerializer
 from pizza_images.pizza_image import ImageCreator
 
 
@@ -42,12 +42,20 @@ class PizzaViewSet(viewsets.ModelViewSet):
 
 class OrderItemViewSet(viewsets.ModelViewSet):
     queryset = OrderItem.objects.all()
-    serializer_class = OrderItemSerializer
+    
+    def get_serializer_class(self):
+        if self.action in ("list", "retrieve"):
+            return OrderItemCreateSerializer
+        return OrderItemSerializer
 
 
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
-    serializer_class = OrderSerializer
+    
+    def get_serializer_class(self):
+        if self.action in ("create"):
+            return OrderCreateSerializer
+        return OrderSerializer
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -55,7 +63,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         if not request.user.is_anonymous:
             for item in serializer.validated_data['order_list']:
-                order_item = OrderItem.objects.get(id=item) 
+                order_item = OrderItem.objects.get(id=item)
                 pizza_creater = Pizza.objects.get(name=order_item.pizza.name).creater
                 if pizza_creater != None and pizza_creater != request.user:
                     raise PermissionDenied("You can't add Pizza that was created by another person")
@@ -76,7 +84,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         else:
             return Response({
-                "message": "You have no Orders"
+                "detail": "You have no Orders"
             })
 
 
